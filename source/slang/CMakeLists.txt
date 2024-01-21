@@ -204,12 +204,14 @@ target_include_directories(
     INTERFACE ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+option(SLANG_TARGET_TYPE "SHARED or STATIC target type" "SHARED")
+
 #
 # Slang itself
 #
 slang_add_target(
     .
-    SHARED
+    ${SLANG_TARGET_TYPE}
     LINK_WITH_PRIVATE
         core
         compiler-core
