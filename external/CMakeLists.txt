@@ -29,23 +29,31 @@ if(MSVC)
 endif()
 
 # Vulkan headers
-add_subdirectory(vulkan EXCLUDE_FROM_ALL)
+if (NOT TARGET Vulkan-Headers)
+    add_subdirectory(vulkan EXCLUDE_FROM_ALL)
+endif()
 
 # SPIRV-Headers
-add_subdirectory(spirv-headers EXCLUDE_FROM_ALL)
+if (NOT TARGET SPIRV-Headers)
+    add_subdirectory(spirv-headers EXCLUDE_FROM_ALL)
+endif()
 
 # SPIRV-Tools
-set(SPIRV_TOOLS_BUILD_STATIC ON)
-set(SPIRV_WERROR OFF)
-set(SPIRV_HEADER_DIR "${CMAKE_CURRENT_LIST_DIR}/spirv-headers/")
-set(SPIRV_SKIP_TESTS ON)
-add_subdirectory(spirv-tools EXCLUDE_FROM_ALL)
+if (NOT TARGET SPIRV-Tools)
+    set(SPIRV_TOOLS_BUILD_STATIC ON)
+    set(SPIRV_WERROR OFF)
+    set(SPIRV_HEADER_DIR "${CMAKE_CURRENT_LIST_DIR}/spirv-headers/")
+    set(SPIRV_SKIP_TESTS ON)
+    add_subdirectory(spirv-tools EXCLUDE_FROM_ALL)
+endif()
 
 # glslang
-set(SKIP_GLSLANG_INSTALL ON)
-set(ENABLE_OPT ON)
-set(ENABLE_PCH OFF)
-add_subdirectory(glslang EXCLUDE_FROM_ALL)
+if (NOT TARGET glslang)
+    set(SKIP_GLSLANG_INSTALL ON)
+    set(ENABLE_OPT ON)
+    set(ENABLE_PCH OFF)
+    add_subdirectory(glslang EXCLUDE_FROM_ALL)
+endif()
 
 # imgui
 add_library(imgui INTERFACE)
