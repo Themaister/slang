@@ -293,10 +293,9 @@ slang_add_target(
 #
 slang_add_target(
     source/slang-glslang
-    MODULE
+    STATIC
     USE_EXTRA_WARNINGS
     LINK_WITH_PRIVATE glslang SPIRV SPIRV-Tools-opt
-    INSTALL
 )
 # Our only interface is through what we define in source/slang-glslang, in the
 # interests of hygiene, hide anything else we link in.

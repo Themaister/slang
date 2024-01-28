@@ -32,6 +32,12 @@
 #   include "../slang-glslang/slang-glslang.h"
 #endif
 
+// maister: STATIC build support
+extern "C"
+{
+extern int glslang_compile_1_2(glslang_CompileRequest_1_2 * inRequest);
+};
+
 namespace Slang
 {
 
@@ -58,10 +64,6 @@ protected:
 
     SlangResult _invoke(glslang_CompileRequest_1_2& request);
 
-    glslang_CompileFunc_1_0 m_compile_1_0 = nullptr; 
-    glslang_CompileFunc_1_1 m_compile_1_1 = nullptr; 
-    glslang_CompileFunc_1_2 m_compile_1_2 = nullptr;
-
     ComPtr<ISlangSharedLibrary> m_sharedLibrary;
 
     SlangPassThrough m_compilerType;
@@ -69,66 +71,17 @@ protected:
 
 SlangResult GlslangDownstreamCompiler::init(ISlangSharedLibrary* library)
 {
-    m_compile_1_0 = (glslang_CompileFunc_1_0)library->findFuncByName("glslang_compile");
-    m_compile_1_1 = (glslang_CompileFunc_1_1)library->findFuncByName("glslang_compile_1_1");
-    m_compile_1_2 = (glslang_CompileFunc_1_2)library->findFuncByName("glslang_compile_1_2");
-
-
-    if (m_compile_1_0 == nullptr && m_compile_1_1 == nullptr && m_compile_1_2 == nullptr)
-    {
-        return SLANG_FAIL;
-    }
-
     m_sharedLibrary = library;
 
     // It's not clear how to query for a version, but we can get a version number from the header
     m_desc = Desc(m_compilerType);
-
-    Slang::String filename;
-    if (m_compile_1_2)
-    {
-        filename = Slang::SharedLibraryUtils::getSharedLibraryFileName((void*)m_compile_1_2);
-    }
-    else if (m_compile_1_1)
-    {
-        filename = Slang::SharedLibraryUtils::getSharedLibraryFileName((void*)m_compile_1_1);
-    }
-    else if (m_compile_1_0)
-    {
-        filename = Slang::SharedLibraryUtils::getSharedLibraryFileName((void*)m_compile_1_0);
-    }
-    else
-    {
-        return SLANG_FAIL;
-    }
 
     return SLANG_OK;
 }
 
 SlangResult GlslangDownstreamCompiler::_invoke(glslang_CompileRequest_1_2& request)
 {
-    int err = 1;
-    if (m_compile_1_2)
-    {
-        err = m_compile_1_2(&request);
-    }
-    else if (m_compile_1_1)
-    {
-        glslang_CompileRequest_1_1 request_1_1;
-        memcpy(&request_1_1, &request, sizeof(request_1_1));
-        request_1_1.sizeInBytes = sizeof(request_1_1);
-        err = m_compile_1_1(&request_1_1);
-    }
-    else if (m_compile_1_0)
-    {
-        glslang_CompileRequest_1_1 request_1_1;
-        memcpy(&request_1_1, &request, sizeof(request_1_1));
-        request_1_1.sizeInBytes = sizeof(request_1_1);
-        glslang_CompileRequest_1_0 request_1_0;
-        request_1_0.set(request_1_1);
-        err = m_compile_1_0(&request_1_0);
-    }
-
+    int err = glslang_compile_1_2(&request);
     return err ? SLANG_FAIL : SLANG_OK;
 }
 
@@ -334,56 +287,18 @@ SlangResult GlslangDownstreamCompiler::convert(IArtifact* from, const ArtifactDe
 
 SlangResult GlslangDownstreamCompiler::getVersionString(slang::IBlob** outVersionString)
 {
-    uint64_t timestamp;
-    if (m_compile_1_1)
-    {
-        timestamp = SharedLibraryUtils::getSharedLibraryTimestamp((void*)m_compile_1_1);
-    }
-    else if (m_compile_1_0)
-    {
-        timestamp = SharedLibraryUtils::getSharedLibraryTimestamp((void*)m_compile_1_0);
-    }
-    else
-    {
-        return SLANG_FAIL;
-    }
-    
+    uint64_t timestamp = 0;
     auto timestampString = String(timestamp);
     ComPtr<ISlangBlob> version = StringBlob::create(timestampString.getBuffer());
     *outVersionString = version.detach();
     return SLANG_OK;
 }
 
-static SlangResult locateGlslangSpirvDownstreamCompiler(const String& path, ISlangSharedLibraryLoader* loader, DownstreamCompilerSet* set, SlangPassThrough compilerType)
+static SlangResult locateGlslangSpirvDownstreamCompiler(const String&, ISlangSharedLibraryLoader*, DownstreamCompilerSet* set, SlangPassThrough compilerType)
 {
-    ComPtr<ISlangSharedLibrary> library;
-
-#if SLANG_UNIX_FAMILY
-    // On unix systems we need to ensure pthread is loaded first.
-    // TODO(JS):
-    // There is an argument that this should be performed through the loader....
-    // NOTE! We don't currently load through a dependent library, as it is *assumed* something as core as 'ptheads'
-    // isn't going to be distributed with the shader compiler. 
-    ComPtr<ISlangSharedLibrary> pthreadLibrary;
-    DefaultSharedLibraryLoader::load(loader, path, "pthread", pthreadLibrary.writeRef());
-    if (!pthreadLibrary.get())
-    {
-        DefaultSharedLibraryLoader::load(loader, path, "libpthread.so.0", pthreadLibrary.writeRef());
-    }
-
-#endif
-
-    SLANG_RETURN_ON_FAIL(DownstreamCompilerUtil::loadSharedLibrary(path, loader, nullptr, "slang-glslang", library));
-
-    SLANG_ASSERT(library);
-    if (!library)
-    {
-        return SLANG_FAIL;
-    }
-
     auto compiler = new GlslangDownstreamCompiler(compilerType);
     ComPtr<IDownstreamCompiler> compilerIntf(compiler);
-    SLANG_RETURN_ON_FAIL(compiler->init(library));
+    SLANG_RETURN_ON_FAIL(compiler->init(nullptr));
 
     set->addCompiler(compilerIntf);
     return SLANG_OK;
